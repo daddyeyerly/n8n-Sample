@@ -1,0 +1,157 @@
+{
+    "name": "GitHub Automation Workflow",
+    "nodes": [
+        {
+            "id": "1",
+            "name": "GitHub Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "github-webhook",
+                "responseMode": "onReceived",
+                "responseData": "default"
+            },
+            "typeVersion": 1,
+            "position": [
+                200,
+                200
+            ]
+        },
+        {
+            "id": "2",
+            "name": "Parse Event",
+            "type": "n8n-nodes-base.function",
+            "parameters": {
+                "functionCode": "return [{json: {message: 'Parsed GitHub event'}}];"
+            },
+            "typeVersion": 1,
+            "position": [
+                400,
+                200
+            ]
+        },
+        {
+            "id": "3",
+            "name": "Filter (Issues/PRs)",
+            "type": "n8n-nodes-base.function",
+            "parameters": {
+                "functionCode": "return items.filter(item => item.json.issue);"
+            },
+            "typeVersion": 1,
+            "position": [
+                600,
+                200
+            ]
+        },
+        {
+            "id": "4",
+            "name": "Auto Label & Assign",
+            "type": "n8n-nodes-base.github",
+            "parameters": {
+                "resource": "issue",
+                "operation": "createLabel",
+                "owner": "GitHubUser",
+                "repo": "RepoName",
+                "name": "auto-label",
+                "color": "f29500"
+            },
+            "typeVersion": 1,
+            "position": [
+                800,
+                200
+            ]
+        },
+        {
+            "id": "5",
+            "name": "Google Sheets Log",
+            "type": "n8n-nodes-base.googleSheets",
+            "parameters": {
+                "operation": "append",
+                "sheetId": "your-google-sheet-id",
+                "range": "Sheet1!A1",
+                "data": [
+                    {
+                        "timestamp": "={{$now()}}",
+                        "event": "={{$json['message']}}"
+                    }
+                ]
+            },
+            "typeVersion": 1,
+            "position": [
+                1000,
+                200
+            ]
+        },
+        {
+            "id": "6",
+            "name": "Telegram Notify",
+            "type": "n8n-nodes-base.telegram",
+            "parameters": {
+                "chatId": "your-chat-id",
+                "text": "New GitHub event processed: {{ $json['message'] }}"
+            },
+            "typeVersion": 1,
+            "position": [
+                1200,
+                200
+            ]
+        }
+    ],
+    "connections": {
+        "GitHub Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Event": {
+            "main": [
+                [
+                    {
+                        "node": "Filter (Issues/PRs)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Filter (Issues/PRs)": {
+            "main": [
+                [
+                    {
+                        "node": "Auto Label & Assign",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Auto Label & Assign": {
+            "main": [
+                [
+                    {
+                        "node": "Google Sheets Log",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Sheets Log": {
+            "main": [
+                [
+                    {
+                        "node": "Telegram Notify",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
